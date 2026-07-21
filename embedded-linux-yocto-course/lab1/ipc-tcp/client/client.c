@@ -21,7 +21,7 @@
 #include <netinet/in.h>     /* struct sockaddr_in */
 #include <arpa/inet.h>      /* htons() et inet_pton() */
 
-#define SERVER_ADDRESS "127.0.0.1"  /* Adresse IPv4 du serveur local. */
+#define SERVER_ADDRESS "192.168.1.51"  /* Adresse IPv4 du serveur local. */
 #define SERVER_PORT 2000             /* Port d'écoute du serveur. */
 #define BUFFER_SIZE 1024             /* Taille des buffers d'envoi et de réception. */
 
