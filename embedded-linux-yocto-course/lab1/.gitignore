@@ -1,3 +1,12 @@
 
 # Downloaded tools
 *.AppImage
+
+# Compiled binaries
+ipc-tcp/client/client
+ipc-tcp/server/server
+
+# Editor temporary files
+*.swp
+*.swo
+*~

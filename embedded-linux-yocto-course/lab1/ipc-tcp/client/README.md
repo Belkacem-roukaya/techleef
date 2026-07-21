@@ -1,8 +1,8 @@
 # TCP Client
 
-This directory is reserved for the TCP client implementation.
+This directory contains the TCP client implementation and its documentation.
 
-## Planned Features
+## Implemented Features
 
 - create an IPv4 TCP socket;
 - connect to the Raspberry Pi server;
@@ -11,4 +11,13 @@ This directory is reserved for the TCP client implementation.
 - handle server disconnection;
 - close the socket correctly.
 
-The client implementation will be added later.
+## Files
+
+- `client.c`: commented TCP client source code;
+- `client.md`: detailed description of the client workflow.
+
+## Build
+
+```bash
+gcc -std=c11 -Wall -Wextra -Wpedantic client.c -o client
+```

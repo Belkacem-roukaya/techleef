@@ -50,9 +50,7 @@ The objective is to develop a Bash script capable of:
 - creating a `.deb` package from a prepared directory;
 - displaying a command-line help menu.
 
-> **Work in progress:** the package-manager [script](shell-package-manager/debmgr.sh) is not finished yet. I will return to it after completing and reviewing the remaining functions.
-
-Planned improvements include argument validation, implementation of all actions, POSIX-compliance checks with ShellCheck, and practical installation tests.
+The package-manager [script](shell-package-manager/debmgr.sh) implements information, installation, removal, package creation, argument validation, and help actions. Operations that modify the system still require practical validation on a Debian-based test machine.
 
 ### 3. POSIX and TCP Sockets
 
@@ -64,12 +62,13 @@ socket() → bind() → listen() → accept() → recv()/send() → close()
 
 Current files:
 
-- [socket_server.c](ipc-tcp/server/server.c): implementation of a TCP server;
-- [server.md](ipc-tcp/server/README.md): detailed explanation of the server workflow.
+- [server.c](ipc-tcp/server/server.c): implementation of a single-client TCP server;
+- [server documentation](ipc-tcp/server/README.md): explanation of the server workflow;
+- [client.c](ipc-tcp/client/client.c): implementation of the TCP client;
+- [client documentation](ipc-tcp/client/client.md): explanation of the client workflow.
 
 Future exercises from the workshop include:
 
-- implementing the TCP client;
 - supporting multiple clients with POSIX threads;
 - broadcasting messages to connected clients;
 - sending and receiving data simultaneously;
@@ -83,9 +82,9 @@ Future exercises from the workshop include:
 | UART configuration on Raspberry Pi 3 | Completed |
 | Serial boot monitoring | Completed |
 | Wi-Fi and SSH setup | Completed |
-| Shell package-manager script | In progress |
-| Single-client TCP server | In progress |
-| TCP client | Planned |
+| Shell package-manager script | Implemented; system tests pending |
+| Single-client TCP server | Completed |
+| TCP client | Completed |
 | Multithreaded TCP server | Planned |
 
 ## Current Structure
@@ -93,16 +92,27 @@ Future exercises from the workshop include:
 ```text
 lab1/
 ├── README.md
-├── docs/
+├── course-material/
 │   └── EmbeddedLinuxYocto_RPi02W_W1.pdf
-├── notes/
+├── setup-guides/
 │   ├── boot-with-uart.md
 │   ├── enable-uart-rpi3.md
+│   ├── sd-card-detection.md
 │   └── wifi-and-ssh-setup.md
-├── rpi_image/
-├── script
-├── server.md
-└── socket_server.c
+├── shell-package-manager/
+│   └── debmgr.sh
+├── ipc-tcp/
+│   ├── README.md
+│   ├── client/
+│   │   ├── README.md
+│   │   ├── client.c
+│   │   └── client.md
+│   └── server/
+│       ├── README.md
+│       └── server.c
+└── tools/
+    └── raspberry-pi-imager/
+        └── imager_2.0.10_amd64.AppImage
 ```
 
 ## Course Material
