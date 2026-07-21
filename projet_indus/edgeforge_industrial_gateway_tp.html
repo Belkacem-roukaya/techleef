@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>EdgeForge Industrial Gateway - TP Yocto BeagleBone</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm;
+    }
+
+    body {
+      font-family: "Liberation Sans", Arial, sans-serif;
+      color: #1f2933;
+      line-height: 1.42;
+      font-size: 10.8pt;
+    }
+
+    h1, h2, h3 {
+      color: #123047;
+      margin: 0 0 8px;
+    }
+
+    h1 {
+      font-size: 25pt;
+      margin-top: 70px;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-size: 17pt;
+      margin-top: 24px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #b6c6d4;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      font-size: 13pt;
+      margin-top: 16px;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 8px;
+    }
+
+    ul, ol {
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    code {
+      font-family: "Liberation Mono", monospace;
+      background: #eef3f7;
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    pre {
+      font-family: "Liberation Mono", monospace;
+      background: #f2f6f9;
+      border: 1px solid #d5e0e8;
+      padding: 9px;
+      font-size: 9pt;
+      white-space: pre-wrap;
+      margin: 8px 0 12px;
+    }
+
+    .cover {
+      page-break-after: always;
+      min-height: 245mm;
+    }
+
+    .subtitle {
+      font-size: 16pt;
+      color: #31556d;
+      margin-bottom: 26px;
+    }
+
+    .meta {
+      margin-top: 34px;
+      border-left: 5px solid #2d6f8f;
+      padding: 12px 16px;
+      background: #eef6f8;
+      width: 82%;
+    }
+
+    .box {
+      border-left: 4px solid #2d6f8f;
+      background: #eef6f8;
+      padding: 10px 12px;
+      margin: 10px 0 14px;
+    }
+
+    .warning {
+      border-left-color: #9b5a14;
+      background: #fff4e5;
+    }
+
+    .success {
+      border-left-color: #2d7a46;
+      background: #eef8f1;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0 14px;
+      font-size: 10pt;
+    }
+
+    th, td {
+      border: 1px solid #cdd7df;
+      padding: 7px;
+      vertical-align: top;
+    }
+
+    th {
+      background: #e5eef5;
+      color: #123047;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <h1>EdgeForge Industrial Gateway</h1>
+    <p class="subtitle">TP complet Yocto pour BeagleBone</p>
+    <div class="meta">
+      <p><strong>Type de projet :</strong> Linux embarque industriel</p>
+      <p><strong>Carte cible :</strong> BeagleBone</p>
+      <p><strong>Technologies :</strong> Yocto, KAS, BitBake, systemd, MQTT/REST, RAUC</p>
+      <p><strong>Objectif :</strong> construire une distribution Linux industrielle avec application de gateway, images dev/prod, monitoring et OTA.</p>
+    </div>
+  </section>
+
+  <h2>1. Vision du projet</h2>
+  <p>
+    Ce TP reprend la demarche du cahier des charges Yocto : structure projet, build,
+    machine, distribution, image, users/groups, SDK, OTA et securite. On ajoute une
+    vraie orientation industrielle : une gateway embarquee capable de lire des donnees
+    machine, les journaliser, les publier via MQTT ou REST, surveiller son etat et se
+    mettre a jour avec RAUC.
+  </p>
+
+  <div class="box">
+    <p><strong>Nom du projet :</strong> EdgeForge Industrial Gateway</p>
+    <p><strong>Application principale :</strong> <code>edgeforge-agent</code></p>
+    <p><strong>Distribution :</strong> <code>edgeforge-distro</code></p>
+    <p><strong>Images :</strong> <code>edgeforge-image-dev</code> et <code>edgeforge-image-prod</code></p>
+  </div>
+
+  <h2>2. Architecture fonctionnelle</h2>
+  <pre>Capteurs / bus industriel
+    |
+    | GPIO / I2C / SPI / UART / CAN
+    v
+edgeforge-agent (service systemd)
+    |
+    +-- traitement local
+    +-- logs journald
+    +-- stockage data
+    +-- publication MQTT ou REST
+    +-- health check
+    v
+Serveur industriel / dashboard / cloud</pre>
+
+  <h2>3. Structure du projet</h2>
+  <pre>edgeforge-gateway/
+|-- docker/
+|-- kas/
+|   `-- kas-beaglebone.yml
+|-- meta-edgeforge-bsp/
+|-- meta-edgeforge-distro/
+|-- meta-edgeforge-prj/
+`-- README.md</pre>
+
+  <table>
+    <tr>
+      <th>Dossier</th>
+      <th>Role</th>
+    </tr>
+    <tr>
+      <td><code>meta-edgeforge-bsp</code></td>
+      <td>Machine BeagleBone, kernel, device tree, WIC, boot, hardware.</td>
+    </tr>
+    <tr>
+      <td><code>meta-edgeforge-distro</code></td>
+      <td>Politique de distribution : systemd, CVE, licences, features, build info.</td>
+    </tr>
+    <tr>
+      <td><code>meta-edgeforge-prj</code></td>
+      <td>Images, application industrielle, users, packagegroups, services.</td>
+    </tr>
+  </table>
+
+  <h2>4. Workflow global conserve depuis le PDF Yocto</h2>
+  <ol>
+    <li>Project structure</li>
+    <li>Build avec KAS et Docker</li>
+    <li>Machine BeagleBone</li>
+    <li>Distribution Yocto separee</li>
+    <li>Images dev et production</li>
+    <li>Users and Groups</li>
+    <li>SDK</li>
+    <li>OTA avec RAUC</li>
+    <li>Securite</li>
+  </ol>
+
+  <div class="box success">
+    <p>
+      Extension industrielle ajoutee : <code>edgeforge-agent</code>, MQTT/REST, service
+      systemd, watchdog, monitoring, partition data, diagnostic CLI et workflow dev/prod.
+    </p>
+  </div>
+
+  <h2 class="page-break">TP 0 - Preparation</h2>
+  <h3>Objectif</h3>
+  <p>Creer le dossier du projet et comprendre la separation entre BSP, distro et projet.</p>
+  <h3>Commandes</h3>
+  <pre>mkdir edgeforge-gateway
+cd edgeforge-gateway
+mkdir docker kas meta-edgeforge-bsp meta-edgeforge-distro meta-edgeforge-prj
+touch README.md</pre>
+  <h3>Resultat attendu</h3>
+  <p>Un projet propre, lisible, pret a recevoir les layers Yocto.</p>
+
+  <h2>TP 1 - Build avec KAS</h2>
+  <h3>Objectif</h3>
+  <p>Creer un fichier KAS pour recuperer les layers et lancer un build reproductible.</p>
+  <h3>Fichier</h3>
+  <p><code>kas/kas-beaglebone.yml</code></p>
+  <h3>Contenu attendu</h3>
+  <ul>
+    <li><code>openembedded-core</code></li>
+    <li><code>bitbake</code></li>
+    <li><code>meta-openembedded</code></li>
+    <li><code>meta-ti</code> ou layer compatible BeagleBone</li>
+    <li><code>meta-edgeforge-bsp</code></li>
+    <li><code>meta-edgeforge-distro</code></li>
+    <li><code>meta-edgeforge-prj</code></li>
+  </ul>
+  <h3>Options importantes</h3>
+  <pre>DL_DIR = "/work/downloads"
+SSTATE_DIR = "/work/sstate-cache"
+INHERIT += "buildhistory"
+INHERIT += "create-spdx"
+SPDX_PRETTY = "1"</pre>
+  <h3>Commande de build</h3>
+  <pre>kas build kas/kas-beaglebone.yml</pre>
+
+  <h2>TP 2 - Docker de build</h2>
+  <h3>Objectif</h3>
+  <p>Construire dans un environnement stable et partageable.</p>
+  <h3>Fichiers</h3>
+  <pre>docker/Dockerfile
+docker/docker-run.sh</pre>
+  <h3>A integrer</h3>
+  <ul>
+    <li>dependances Yocto</li>
+    <li>installation de <code>kas</code></li>
+    <li>montage du projet en volume</li>
+    <li>montage de <code>downloads</code> et <code>sstate-cache</code></li>
+    <li>script HTTP local pour exposer le dossier <code>deploy</code></li>
+  </ul>
+
+  <h2 class="page-break">TP 3 - Layer BSP BeagleBone</h2>
+  <h3>Objectif</h3>
+  <p>Creer la couche qui gere la carte cible et le hardware.</p>
+  <h3>Structure</h3>
+  <pre>meta-edgeforge-bsp/
+|-- conf/
+|   |-- layer.conf
+|   `-- machine/beaglebone-edgeforge.conf
+|-- recipes-kernel/
+`-- wic/</pre>
+  <h3>A faire</h3>
+  <ul>
+    <li>selectionner la machine BeagleBone</li>
+    <li>controler les <code>MACHINE_FEATURES</code></li>
+    <li>preparer le boot</li>
+    <li>preparer les partitions WIC</li>
+    <li>preparer la configuration kernel</li>
+  </ul>
+
+  <h2>TP 4 - Configuration kernel</h2>
+  <h3>Objectif</h3>
+  <p>Activer uniquement les fonctionnalites necessaires a la gateway industrielle.</p>
+  <h3>Fichiers</h3>
+  <pre>meta-edgeforge-bsp/recipes-kernel/linux/linux-%.bbappend
+meta-edgeforge-bsp/recipes-kernel/linux/files/edgeforge.cfg
+meta-edgeforge-bsp/recipes-kernel/linux/files/industrial-io.cfg</pre>
+  <h3>Fonctionnalites a activer</h3>
+  <ul>
+    <li>GPIO</li>
+    <li>I2C</li>
+    <li>SPI si necessaire</li>
+    <li>UART</li>
+    <li>CAN si disponible</li>
+    <li>watchdog</li>
+    <li>options reseau utiles</li>
+  </ul>
+
+  <h2>TP 5 - Device Tree et overlays</h2>
+  <h3>Objectif</h3>
+  <p>Activer le materiel necessaire depuis le device tree.</p>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-bsp/recipes-kernel/linux/files/edgeforge-industrial-overlay.dts</pre>
+  <h3>Tests attendus</h3>
+  <pre>gpioinfo
+i2cdetect -y 1
+dmesg | grep -i i2c</pre>
+
+  <h2 class="page-break">TP 6 - Distribution industrielle</h2>
+  <h3>Objectif</h3>
+  <p>Creer une distribution Yocto separee, controlee et orientee produit.</p>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-distro/conf/distro/edgeforge-distro.conf</pre>
+  <h3>Configuration de base</h3>
+  <pre>DISTRO = "edgeforge-distro"
+DISTRO_NAME = "EdgeForge Industrial Linux"
+DISTRO_VERSION = "1.0"
+INIT_MANAGER = "systemd"
+NO_RECOMMENDATIONS = "1"
+PACKAGE_CLASSES ?= "package_ipk"
+INHERIT += "cve-check"
+INHERIT += "image-buildinfo"</pre>
+  <h3>Options industrielles</h3>
+  <ul>
+    <li>controler les licences</li>
+    <li>activer le suivi CVE</li>
+    <li>ajouter build information</li>
+    <li>preparer les variantes dev et prod</li>
+  </ul>
+
+  <h2>TP 7 - Images dev et production</h2>
+  <h3>Objectif</h3>
+  <p>Separer une image de developpement confortable et une image production minimale.</p>
+  <h3>Fichiers</h3>
+  <pre>meta-edgeforge-prj/recipes-image/images/edgeforge-image-dev.bb
+meta-edgeforge-prj/recipes-image/images/edgeforge-image-prod.bb</pre>
+  <table>
+    <tr>
+      <th>Image dev</th>
+      <th>Image prod</th>
+    </tr>
+    <tr>
+      <td>SSH, debug tools, gdb, strace, i2c-tools, can-utils, dev-pkgs, dbg-pkgs.</td>
+      <td>Paquets minimum, pas de debug, utilisateur non-root, services essentiels.</td>
+    </tr>
+  </table>
+
+  <h2>TP 8 - Application industrielle edgeforge-agent</h2>
+  <h3>Objectif</h3>
+  <p>Developper l'application metier qui transforme l'image Yocto en vrai produit industriel.</p>
+  <h3>Structure</h3>
+  <pre>meta-edgeforge-prj/recipes-apps/edgeforge-agent/
+|-- edgeforge-agent.bb
+`-- files/
+    |-- edgeforge-agent.py
+    |-- edgeforge-agent.service
+    `-- edgeforge-agent.conf</pre>
+  <h3>Version 1</h3>
+  <ul>
+    <li>generer des donnees simulees</li>
+    <li>ecrire les logs dans journald</li>
+    <li>lancer l'application via systemd</li>
+    <li>redemarrer automatiquement en cas de crash</li>
+  </ul>
+  <h3>Version 2</h3>
+  <ul>
+    <li>lire une entree GPIO ou I2C</li>
+    <li>publier via MQTT</li>
+    <li>charger un fichier de configuration</li>
+  </ul>
+
+  <h2 class="page-break">TP 9 - Service systemd industriel</h2>
+  <h3>Objectif</h3>
+  <p>Rendre l'application robuste et demarree automatiquement.</p>
+  <h3>Exemple de service</h3>
+  <pre>[Unit]
+Description=EdgeForge Industrial Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edgeuser
+ExecStart=/usr/bin/edgeforge-agent --config /etc/edgeforge/agent.conf
+Restart=always
+RestartSec=5
+WatchdogSec=30
+
+[Install]
+WantedBy=multi-user.target</pre>
+  <h3>Tests</h3>
+  <pre>systemctl status edgeforge-agent
+journalctl -u edgeforge-agent -f</pre>
+
+  <h2>TP 10 - Users, groups et permissions</h2>
+  <h3>Objectif</h3>
+  <p>Eviter de lancer les applications industrielles en root.</p>
+  <h3>Utilisateur</h3>
+  <p><code>edgeuser</code></p>
+  <h3>Groupes</h3>
+  <pre>gpio
+i2c
+spi
+dialout
+systemd-journal</pre>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-prj/recipes-core/users/edgeforge-users.bb</pre>
+
+  <h2>TP 11 - Packagegroup industriel</h2>
+  <h3>Objectif</h3>
+  <p>Organiser les paquets du projet dans un packagegroup propre.</p>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-prj/recipes-core/packagegroups/packagegroup-edgeforge-industrial.bb</pre>
+  <h3>Contenu</h3>
+  <ul>
+    <li><code>edgeforge-agent</code></li>
+    <li>outils hardware</li>
+    <li>outils reseau</li>
+    <li>outils monitoring</li>
+    <li>dependances MQTT ou REST</li>
+  </ul>
+
+  <h2>TP 12 - Partition data</h2>
+  <h3>Objectif</h3>
+  <p>Separer les donnees industrielles du systeme rootfs.</p>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-bsp/wic/edgeforge.wks</pre>
+  <h3>Partitions</h3>
+  <pre>boot
+rootfs
+data</pre>
+  <h3>Contenu de data</h3>
+  <ul>
+    <li>logs applicatifs</li>
+    <li>base SQLite</li>
+    <li>configuration locale</li>
+    <li>donnees temporaires</li>
+  </ul>
+
+  <h2 class="page-break">TP 13 - Communication industrielle</h2>
+  <h3>Objectif</h3>
+  <p>Connecter la gateway au systeme de supervision.</p>
+  <h3>Option recommandee</h3>
+  <p><strong>MQTT</strong>, car il est courant en IoT industriel et simple a tester.</p>
+  <h3>Flux</h3>
+  <pre>edgeforge-agent -> MQTT topic -> broker -> dashboard / serveur</pre>
+  <h3>Topics exemples</h3>
+  <pre>factory/edgeforge/status
+factory/edgeforge/sensors
+factory/edgeforge/alerts</pre>
+
+  <h2>TP 14 - Monitoring et diagnostic</h2>
+  <h3>Objectif</h3>
+  <p>Faciliter le diagnostic terrain.</p>
+  <h3>Commande cible</h3>
+  <pre>edgeforgectl status
+edgeforgectl sensors
+edgeforgectl version
+edgeforgectl logs</pre>
+  <h3>Informations a afficher</h3>
+  <ul>
+    <li>etat du service</li>
+    <li>uptime</li>
+    <li>temperature CPU</li>
+    <li>espace disque</li>
+    <li>version de l'image</li>
+    <li>derniers logs importants</li>
+  </ul>
+
+  <h2>TP 15 - SDK</h2>
+  <h3>Objectif</h3>
+  <p>Generer une toolchain pour developper l'application hors Yocto.</p>
+  <h3>Commande</h3>
+  <pre>bitbake edgeforge-image-dev -c populate_sdk</pre>
+  <h3>Test attendu</h3>
+  <ul>
+    <li>installer le SDK</li>
+    <li>compiler une petite application</li>
+    <li>integrer ensuite cette application dans une recette Yocto</li>
+  </ul>
+
+  <h2>TP 16 - OTA avec RAUC</h2>
+  <h3>Objectif</h3>
+  <p>Mettre a jour le systeme comme un produit industriel.</p>
+  <h3>A ajouter</h3>
+  <ul>
+    <li><code>meta-rauc</code></li>
+    <li><code>rauc</code></li>
+    <li><code>rauc-conf</code></li>
+    <li>certificats de developpement</li>
+    <li>bundle signe</li>
+  </ul>
+  <h3>Fichier</h3>
+  <pre>meta-edgeforge-prj/recipes-image/bundles/edgeforge-bundle.bb</pre>
+  <h3>Tests</h3>
+  <pre>rauc status
+rauc install edgeforge-update.raucb</pre>
+
+  <h2 class="page-break">TP 17 - Securite industrielle</h2>
+  <h3>Objectif</h3>
+  <p>Durcir progressivement le systeme.</p>
+  <h3>Actions</h3>
+  <ul>
+    <li>desactiver le root login</li>
+    <li>forcer SSH par cle</li>
+    <li>lancer les services avec utilisateur non-root</li>
+    <li>limiter les permissions</li>
+    <li>suivre les CVE</li>
+    <li>envisager rootfs read-only</li>
+    <li>ajouter dm-verity plus tard</li>
+    <li>chiffrer la partition data plus tard</li>
+  </ul>
+
+  <h2>TP 18 - Documentation finale</h2>
+  <h3>Objectif</h3>
+  <p>Rendre le projet maintenable et presentable.</p>
+  <h3>README attendu</h3>
+  <pre>1. Presentation
+2. Architecture
+3. Hardware cible
+4. Build avec Docker/KAS
+5. Images disponibles
+6. Application edgeforge-agent
+7. Tests hardware
+8. OTA RAUC
+9. Securite
+10. Roadmap</pre>
+
+  <h2>Roadmap conseillee</h2>
+  <ol>
+    <li>Build minimal BeagleBone</li>
+    <li>Image dev avec SSH</li>
+    <li>Distro edgeforge propre</li>
+    <li>Application simulee edgeforge-agent</li>
+    <li>Service systemd et logs</li>
+    <li>User non-root</li>
+    <li>Lecture GPIO/I2C reelle</li>
+    <li>Publication MQTT</li>
+    <li>Image production</li>
+    <li>Partition data</li>
+    <li>SDK</li>
+    <li>RAUC OTA</li>
+    <li>Securite avancee</li>
+  </ol>
+
+  <div class="box warning">
+    <p>
+      Conseil important : ne pas tout faire en meme temps. Construire une image qui boot,
+      puis ajouter une seule capacite a la fois. Chaque TP doit se terminer par un test
+      clair sur la BeagleBone ou dans l'environnement de build.
+    </p>
+  </div>
+</body>
+</html>

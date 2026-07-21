@@ -1,0 +1,536 @@
+EDGEFORGE INDUSTRIAL GATEWAY
+TP complet Yocto pour BeagleBone
+
+Type de projet : Linux embarque industriel
+Carte cible : BeagleBone
+Technologies : Yocto, KAS, BitBake, systemd, MQTT/REST, RAUC
+
+Objectif :
+Construire une distribution Linux industrielle avec Yocto pour BeagleBone,
+integrant une application de gateway, des images dev/prod, du monitoring,
+une partition data, un SDK, des mises a jour OTA et une securite progressive.
+
+
+1. VISION DU PROJET
+
+Ce TP reprend la demarche du cahier des charges Yocto :
+
+1. Project structure
+2. Build
+3. Machine
+4. Distribution
+5. Image
+6. Users and Groups
+7. SDK
+8. OTA
+9. Security
+
+On ajoute une orientation industrielle :
+
+- application metier : edgeforge-agent
+- service systemd robuste
+- logs journald
+- watchdog
+- monitoring
+- diagnostic CLI : edgeforgectl
+- communication MQTT ou REST
+- partition data
+- separation image dev / image prod
+- mise a jour OTA avec RAUC
+
+
+2. ARCHITECTURE FONCTIONNELLE
+
+Capteurs / bus industriel
+    |
+    | GPIO / I2C / SPI / UART / CAN
+    v
+edgeforge-agent (service systemd)
+    |
+    +-- traitement local
+    +-- logs journald
+    +-- stockage data
+    +-- publication MQTT ou REST
+    +-- health check
+    v
+Serveur industriel / dashboard / cloud
+
+
+3. STRUCTURE DU PROJET
+
+edgeforge-gateway/
+|-- docker/
+|-- kas/
+|   `-- kas-beaglebone.yml
+|-- meta-edgeforge-bsp/
+|-- meta-edgeforge-distro/
+|-- meta-edgeforge-prj/
+`-- README.md
+
+Role des layers :
+
+- meta-edgeforge-bsp
+  Machine BeagleBone, kernel, device tree, WIC, boot et hardware.
+
+- meta-edgeforge-distro
+  Politique de distribution : systemd, CVE, licences, features et build info.
+
+- meta-edgeforge-prj
+  Images, application industrielle, users, packagegroups et services.
+
+
+4. TP 0 - PREPARATION
+
+Objectif :
+Creer le dossier du projet et comprendre la separation entre BSP, distro et projet.
+
+Commandes :
+
+mkdir edgeforge-gateway
+cd edgeforge-gateway
+mkdir docker kas meta-edgeforge-bsp meta-edgeforge-distro meta-edgeforge-prj
+touch README.md
+
+Resultat attendu :
+Un projet propre, lisible et pret a recevoir les layers Yocto.
+
+
+5. TP 1 - BUILD AVEC KAS
+
+Objectif :
+Creer un fichier KAS pour recuperer les layers et lancer un build reproductible.
+
+Fichier :
+kas/kas-beaglebone.yml
+
+Layers a integrer :
+
+- openembedded-core
+- bitbake
+- meta-openembedded
+- meta-ti ou layer compatible BeagleBone
+- meta-edgeforge-bsp
+- meta-edgeforge-distro
+- meta-edgeforge-prj
+
+Options importantes :
+
+DL_DIR = "/work/downloads"
+SSTATE_DIR = "/work/sstate-cache"
+INHERIT += "buildhistory"
+INHERIT += "create-spdx"
+SPDX_PRETTY = "1"
+
+Commande :
+
+kas build kas/kas-beaglebone.yml
+
+
+6. TP 2 - DOCKER DE BUILD
+
+Objectif :
+Construire dans un environnement stable et partageable.
+
+Fichiers :
+
+docker/Dockerfile
+docker/docker-run.sh
+
+A integrer :
+
+- dependances Yocto
+- installation de kas
+- montage du projet en volume
+- montage de downloads et sstate-cache
+- script HTTP local pour exposer le dossier deploy
+
+
+7. TP 3 - LAYER BSP BEAGLEBONE
+
+Objectif :
+Creer la couche qui gere la carte cible et le hardware.
+
+Structure :
+
+meta-edgeforge-bsp/
+|-- conf/
+|   |-- layer.conf
+|   `-- machine/beaglebone-edgeforge.conf
+|-- recipes-kernel/
+`-- wic/
+
+A faire :
+
+- selectionner la machine BeagleBone
+- controler les MACHINE_FEATURES
+- preparer le boot
+- preparer les partitions WIC
+- preparer la configuration kernel
+
+
+8. TP 4 - CONFIGURATION KERNEL
+
+Objectif :
+Activer uniquement les fonctionnalites necessaires a la gateway industrielle.
+
+Fichiers :
+
+meta-edgeforge-bsp/recipes-kernel/linux/linux-%.bbappend
+meta-edgeforge-bsp/recipes-kernel/linux/files/edgeforge.cfg
+meta-edgeforge-bsp/recipes-kernel/linux/files/industrial-io.cfg
+
+Fonctionnalites a activer :
+
+- GPIO
+- I2C
+- SPI si necessaire
+- UART
+- CAN si disponible
+- watchdog
+- options reseau utiles
+
+
+9. TP 5 - DEVICE TREE ET OVERLAYS
+
+Objectif :
+Activer le materiel necessaire depuis le device tree.
+
+Fichier :
+
+meta-edgeforge-bsp/recipes-kernel/linux/files/edgeforge-industrial-overlay.dts
+
+Tests attendus :
+
+gpioinfo
+i2cdetect -y 1
+dmesg | grep -i i2c
+
+
+10. TP 6 - DISTRIBUTION INDUSTRIELLE
+
+Objectif :
+Creer une distribution Yocto separee, controlee et orientee produit.
+
+Fichier :
+
+meta-edgeforge-distro/conf/distro/edgeforge-distro.conf
+
+Configuration de base :
+
+DISTRO = "edgeforge-distro"
+DISTRO_NAME = "EdgeForge Industrial Linux"
+DISTRO_VERSION = "1.0"
+INIT_MANAGER = "systemd"
+NO_RECOMMENDATIONS = "1"
+PACKAGE_CLASSES ?= "package_ipk"
+INHERIT += "cve-check"
+INHERIT += "image-buildinfo"
+
+Options industrielles :
+
+- controler les licences
+- activer le suivi CVE
+- ajouter build information
+- preparer les variantes dev et prod
+
+
+11. TP 7 - IMAGES DEV ET PRODUCTION
+
+Objectif :
+Separer une image de developpement confortable et une image production minimale.
+
+Fichiers :
+
+meta-edgeforge-prj/recipes-image/images/edgeforge-image-dev.bb
+meta-edgeforge-prj/recipes-image/images/edgeforge-image-prod.bb
+
+Image dev :
+
+- SSH actif
+- debug tools
+- gdb, strace, i2c-tools, can-utils
+- dev-pkgs et dbg-pkgs
+- logs detailles
+
+Image prod :
+
+- paquets minimum
+- pas de debug inutile
+- utilisateur non-root
+- services essentiels uniquement
+- securite renforcee
+
+
+12. TP 8 - APPLICATION INDUSTRIELLE EDGEFORGE-AGENT
+
+Objectif :
+Developper l'application metier qui transforme l'image Yocto en vrai produit industriel.
+
+Structure :
+
+meta-edgeforge-prj/recipes-apps/edgeforge-agent/
+|-- edgeforge-agent.bb
+`-- files/
+    |-- edgeforge-agent.py
+    |-- edgeforge-agent.service
+    `-- edgeforge-agent.conf
+
+Version 1 :
+
+- generer des donnees simulees
+- ecrire les logs dans journald
+- lancer l'application via systemd
+- redemarrer automatiquement en cas de crash
+
+Version 2 :
+
+- lire une entree GPIO ou I2C
+- publier via MQTT
+- charger un fichier de configuration
+
+
+13. TP 9 - SERVICE SYSTEMD INDUSTRIEL
+
+Objectif :
+Rendre l'application robuste et demarree automatiquement.
+
+Exemple de service :
+
+[Unit]
+Description=EdgeForge Industrial Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=edgeuser
+ExecStart=/usr/bin/edgeforge-agent --config /etc/edgeforge/agent.conf
+Restart=always
+RestartSec=5
+WatchdogSec=30
+
+[Install]
+WantedBy=multi-user.target
+
+Tests :
+
+systemctl status edgeforge-agent
+journalctl -u edgeforge-agent -f
+
+
+14. TP 10 - USERS, GROUPS ET PERMISSIONS
+
+Objectif :
+Eviter de lancer les applications industrielles en root.
+
+Utilisateur :
+edgeuser
+
+Groupes :
+
+- gpio
+- i2c
+- spi
+- dialout
+- systemd-journal
+
+Fichier :
+
+meta-edgeforge-prj/recipes-core/users/edgeforge-users.bb
+
+
+15. TP 11 - PACKAGEGROUP INDUSTRIEL
+
+Objectif :
+Organiser les paquets du projet dans un packagegroup propre.
+
+Fichier :
+
+meta-edgeforge-prj/recipes-core/packagegroups/packagegroup-edgeforge-industrial.bb
+
+Contenu :
+
+- edgeforge-agent
+- outils hardware
+- outils reseau
+- outils monitoring
+- dependances MQTT ou REST
+
+Dans l'image :
+
+IMAGE_INSTALL:append = " packagegroup-edgeforge-industrial"
+
+
+16. TP 12 - PARTITION DATA
+
+Objectif :
+Separer les donnees industrielles du systeme rootfs.
+
+Fichier :
+
+meta-edgeforge-bsp/wic/edgeforge.wks
+
+Partitions :
+
+- boot
+- rootfs
+- data
+
+Contenu de data :
+
+- logs applicatifs
+- base SQLite
+- configuration locale
+- donnees temporaires
+
+
+17. TP 13 - COMMUNICATION INDUSTRIELLE
+
+Objectif :
+Connecter la gateway au systeme de supervision.
+
+Option recommandee :
+MQTT, car il est courant en IoT industriel et simple a tester.
+
+Flux :
+
+edgeforge-agent -> MQTT topic -> broker -> dashboard / serveur
+
+Topics exemples :
+
+factory/edgeforge/status
+factory/edgeforge/sensors
+factory/edgeforge/alerts
+
+
+18. TP 14 - MONITORING ET DIAGNOSTIC
+
+Objectif :
+Faciliter le diagnostic terrain.
+
+Commande cible :
+
+edgeforgectl status
+edgeforgectl sensors
+edgeforgectl version
+edgeforgectl logs
+
+Informations a afficher :
+
+- etat du service
+- uptime
+- temperature CPU
+- espace disque
+- version de l'image
+- derniers logs importants
+
+
+19. TP 15 - SDK
+
+Objectif :
+Generer une toolchain pour developper l'application hors Yocto.
+
+Commande :
+
+bitbake edgeforge-image-dev -c populate_sdk
+
+Test attendu :
+
+- installer le SDK
+- compiler une petite application
+- integrer ensuite cette application dans une recette Yocto
+
+
+20. TP 16 - OTA AVEC RAUC
+
+Objectif :
+Mettre a jour le systeme comme un produit industriel.
+
+A ajouter :
+
+- meta-rauc
+- rauc
+- rauc-conf
+- certificats de developpement
+- bundle signe
+
+Fichier :
+
+meta-edgeforge-prj/recipes-image/bundles/edgeforge-bundle.bb
+
+Tests :
+
+rauc status
+rauc install edgeforge-update.raucb
+
+
+21. TP 17 - SECURITE INDUSTRIELLE
+
+Objectif :
+Durcir progressivement le systeme.
+
+Actions :
+
+- desactiver le root login
+- forcer SSH par cle
+- lancer les services avec utilisateur non-root
+- limiter les permissions
+- suivre les CVE
+- envisager rootfs read-only
+- ajouter dm-verity plus tard
+- chiffrer la partition data plus tard
+
+
+22. TP 18 - DOCUMENTATION FINALE
+
+Objectif :
+Rendre le projet maintenable et presentable.
+
+README attendu :
+
+1. Presentation
+2. Architecture
+3. Hardware cible
+4. Build avec Docker/KAS
+5. Images disponibles
+6. Application edgeforge-agent
+7. Tests hardware
+8. OTA RAUC
+9. Securite
+10. Roadmap
+
+
+23. ROADMAP CONSEILLEE
+
+1. Build minimal BeagleBone
+2. Image dev avec SSH
+3. Distro edgeforge propre
+4. Application simulee edgeforge-agent
+5. Service systemd et logs
+6. User non-root
+7. Lecture GPIO/I2C reelle
+8. Publication MQTT
+9. Image production
+10. Partition data
+11. SDK
+12. RAUC OTA
+13. Securite avancee
+
+
+24. CONSEIL IMPORTANT
+
+Ne pas tout faire en meme temps.
+
+Construire d'abord une image qui boot. Ensuite ajouter une seule capacite a la fois.
+Chaque TP doit se terminer par un test clair sur la BeagleBone ou dans l'environnement
+de build.
+
+La bonne logique est :
+
+1. build
+2. boot
+3. test
+4. ajout d'une fonctionnalite
+5. rebuild
+6. validation
+7. documentation
